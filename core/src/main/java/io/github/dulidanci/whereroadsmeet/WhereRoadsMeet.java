@@ -1,40 +1,83 @@
 package io.github.dulidanci.whereroadsmeet;
 
 import com.badlogic.gdx.ApplicationListener;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
+import io.github.dulidanci.whereroadsmeet.asset.AssetManagerWrapper;
+import io.github.dulidanci.whereroadsmeet.input.InputProcessor;
+import io.github.dulidanci.whereroadsmeet.level.block.Blocks;
+import io.github.dulidanci.whereroadsmeet.screen.ScreenManager;
+import io.github.dulidanci.whereroadsmeet.screen.WorldScreen;
 
-/** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class WhereRoadsMeet implements ApplicationListener {
+    public static final String ID = "whereroadsmeet";
+    public static WhereRoadsMeet instance;
+    private ScreenManager screenManager;
+    private AssetManagerWrapper assetManager;
+    private InputProcessor inputProcessor;
+
+    private WhereRoadsMeet() {}
+
+    public static WhereRoadsMeet getInstance() {
+        if (instance == null) {
+            instance = new WhereRoadsMeet();
+        }
+        return instance;
+    }
+
     @Override
     public void create() {
-        // Prepare your application here.
+        screenManager = new ScreenManager();
+        assetManager = new AssetManagerWrapper();
+        inputProcessor = new InputProcessor();
+
+        Gdx.input.setInputProcessor(inputProcessor);
+        Blocks.init();
+
+        screenManager.setScreen(new WorldScreen());
     }
 
     @Override
     public void resize(int width, int height) {
-        // If the window is minimized on a desktop (LWJGL3) platform, width and height are 0, which causes problems.
-        // In that case, we don't resize anything, and wait for the window to be a normal size before updating.
         if(width <= 0 || height <= 0) return;
 
-        // Resize your application here. The parameters represent the new window size.
+        screenManager.resize(width, height);
     }
 
     @Override
     public void render() {
-        // Draw your application here.
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            Gdx.app.exit();
+        }
+
+        screenManager.render();
     }
 
     @Override
     public void pause() {
-        // Invoked when your application is paused.
+        screenManager.pause();
     }
 
     @Override
     public void resume() {
-        // Invoked when your application is resumed after pause.
+        screenManager.resume();
     }
 
     @Override
     public void dispose() {
-        // Destroy application's resources here.
+        screenManager.dispose();
+        assetManager.dispose();
+    }
+
+    public ScreenManager getScreenManager() {
+        return screenManager;
+    }
+
+    public AssetManagerWrapper getAssetManager() {
+        return assetManager;
+    }
+
+    public InputProcessor getInputProcessor() {
+        return inputProcessor;
     }
 }
