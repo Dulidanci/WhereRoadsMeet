@@ -11,7 +11,7 @@ public class Blocks {
     public static final Block LEAVES;
 
     public static Block register(Block block) {
-        return Registries.registerEntry(Registries.BLOCK_TYPES, block.getId(), block);
+        return Registries.registerEntryNext(Registries.BLOCK_TYPES, block.getId(), block);
     }
 
     public static void init() {

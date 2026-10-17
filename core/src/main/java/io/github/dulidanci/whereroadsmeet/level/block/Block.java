@@ -32,4 +32,9 @@ public class Block {
         this.solid = solid;
         return this;
     }
+
+    @Override
+    public String toString() {
+        return "Block." + id;
+    }
 }

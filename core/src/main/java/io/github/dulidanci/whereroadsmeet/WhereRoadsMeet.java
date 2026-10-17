@@ -14,7 +14,6 @@ public class WhereRoadsMeet implements ApplicationListener {
     public static WhereRoadsMeet instance;
     private ScreenManager screenManager;
     private AssetManagerWrapper assetManager;
-    private InputProcessor inputProcessor;
 
     private WhereRoadsMeet() {}
 
@@ -29,9 +28,8 @@ public class WhereRoadsMeet implements ApplicationListener {
     public void create() {
         screenManager = new ScreenManager();
         assetManager = new AssetManagerWrapper();
-        inputProcessor = new InputProcessor();
 
-        Gdx.input.setInputProcessor(inputProcessor);
+        Gdx.input.setInputProcessor(new InputProcessor());
         Blocks.init();
 
         screenManager.setScreen(new WorldScreen());
@@ -75,9 +73,5 @@ public class WhereRoadsMeet implements ApplicationListener {
 
     public AssetManagerWrapper getAssetManager() {
         return assetManager;
-    }
-
-    public InputProcessor getInputProcessor() {
-        return inputProcessor;
     }
 }
