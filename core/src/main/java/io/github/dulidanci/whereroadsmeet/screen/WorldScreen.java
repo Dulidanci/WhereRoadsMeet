@@ -13,6 +13,7 @@ import com.badlogic.gdx.math.collision.Ray;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import io.github.dulidanci.whereroadsmeet.asset.AssetManagerWrapper;
+import io.github.dulidanci.whereroadsmeet.level.block.Blocks;
 import io.github.dulidanci.whereroadsmeet.level.world.Axis;
 import io.github.dulidanci.whereroadsmeet.level.world.World;
 import io.github.dulidanci.whereroadsmeet.level.world.WorldRenderer;
@@ -77,7 +78,13 @@ public class WorldScreen implements Screen {
         if (Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
             RaycastResult raycastResult = raycastFromScreen(Gdx.input.getX(), Gdx.input.getY());
             if (raycastResult.side() != Axis.NEGATIVE_Y) {
-                world.setBlock(raycastResult.targetCoords().add(raycastResult.side().getVector()), world.getSelectedBlock());
+                if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)) {
+                    if (world.getBlock(raycastResult.targetCoords().add(raycastResult.side().getOpposite().getVector())) == Blocks.AIR) {
+                        world.setBlock(raycastResult.targetCoords(), world.getSelectedBlock());
+                    }
+                } else {
+                    world.setBlock(raycastResult.targetCoords().add(raycastResult.side().getVector()), world.getSelectedBlock());
+                }
             }
         }
 
