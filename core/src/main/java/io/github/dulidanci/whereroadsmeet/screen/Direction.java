@@ -21,11 +21,13 @@ public enum Direction {
     private final Function<Vector3, Vector3> coordsRotation;
     private final Axis facingLargeSide;
     private final Axis facingSmallSide;
+    private final GridPoint3 visibleSides;
 
     Direction(Function<Vector3, Vector3> rotator, Axis facingLargeSide, Axis facingSmallSide) {
         this.coordsRotation = rotator;
         this.facingLargeSide = facingLargeSide;
         this.facingSmallSide = facingSmallSide;
+        this.visibleSides = new GridPoint3().add(facingLargeSide.getVector()).add(facingSmallSide.getVector()).add(Axis.POSITIVE_Y.getVector());
     }
 
     public GridPoint3 rotateCoords(GridPoint3 coords) {
@@ -67,6 +69,6 @@ public enum Direction {
     }
 
     public GridPoint3 getVisibleSides() {
-        return new GridPoint3().add(facingLargeSide.getVector()).add(facingSmallSide.getVector()).add(Axis.POSITIVE_Y.getVector());
+        return visibleSides;
     }
 }

@@ -3,14 +3,21 @@ package io.github.dulidanci.whereroadsmeet.level.world;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.GridPoint3;
 import com.badlogic.gdx.math.Matrix3;
+import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.Ray;
 import io.github.dulidanci.whereroadsmeet.level.block.Block;
 import io.github.dulidanci.whereroadsmeet.level.block.Blocks;
+import io.github.dulidanci.whereroadsmeet.level.entity.Entity;
+import io.github.dulidanci.whereroadsmeet.level.entity.Player;
 import io.github.dulidanci.whereroadsmeet.level.world.collision.RaycastResult;
 import io.github.dulidanci.whereroadsmeet.level.world.collision.Raycaster;
+import io.github.dulidanci.whereroadsmeet.level.world.gen.Perlin2D;
+import io.github.dulidanci.whereroadsmeet.level.world.gen.WorldGenerator;
+import io.github.dulidanci.whereroadsmeet.level.world.render.Renderable;
+import io.github.dulidanci.whereroadsmeet.level.world.render.RenderableBlock;
+import io.github.dulidanci.whereroadsmeet.level.world.render.RenderableEntity;
 import io.github.dulidanci.whereroadsmeet.registry.Registries;
 import io.github.dulidanci.whereroadsmeet.screen.Direction;
-import io.github.dulidanci.whereroadsmeet.util.Pair;
 
 import java.util.*;
 
@@ -26,14 +33,16 @@ public class World {
         -20f, 5f,  0f
     });
     public final Settings settings;
-    private final WorldRenderer worldRenderer;
     private final Raycaster rayCaster;
     private final Map<GridPoint3, Chunk> chunks = new HashMap<>();
+    private final ArrayList<Renderable> renderOrder = new ArrayList<>();
+    private final ArrayList<Entity> entities = new ArrayList<>();
+    private Player player;
     private Block selectedBlock;
 
     public World() {
+        Perlin2D.setSeed(new Random().nextLong());
         this.settings = new Settings();
-        this.worldRenderer = new WorldRenderer(this);
         this.rayCaster = new Raycaster(this);
         this.selectedBlock = Blocks.COBBLESTONE;
 
@@ -41,29 +50,68 @@ public class World {
     }
 
     public void reset() {
-        this.initRoofedHouse();
+        chunks.clear();
+
+        for (int i = -settings.RENDER_DISTANCE; i <= settings.RENDER_DISTANCE; i++) {
+            for (int j = -settings.RENDER_DISTANCE; j <= settings.RENDER_DISTANCE; j++) {
+                chunks.put(new GridPoint3(i, 0, j), WorldGenerator.generateChunk(i, j));
+            }
+        }
+//        this.initRoofedHouse();
+
+        entities.clear();
+
+        player = new Player(this);
+        entities.add(player);
     }
 
-    public void update() {}
+    public void update(float delta) {
+//        if (Gdx.input.isKeyJustPressed(Input.Keys.W)) {
+//
+//        }
+//        if (Gdx.input.isKeyJustPressed(Input.Keys.W)) {
+//
+//        }
+//        if (Gdx.input.isKeyJustPressed(Input.Keys.W)) {
+//
+//        }
+//        if (Gdx.input.isKeyJustPressed(Input.Keys.W)) {
+//
+//        }
+
+        entities.forEach(entity -> entity.update(delta));
+    }
 
     public void render(SpriteBatch batch, float delta, Direction direction) {
-        GridPoint3 directionBias = new GridPoint3()
-            .add(0, 4, 0)
-            .add(Math.abs(direction.getFacingLargeSide().getVector().x) * 2, 0, Math.abs(direction.getFacingLargeSide().getVector().z) * 2)
-            .add(Math.abs(direction.getFacingSmallSide().getVector().x), 0, Math.abs(direction.getFacingSmallSide().getVector().z));
-        PriorityQueue<Pair<GridPoint3, Block>> queue = new PriorityQueue<>(Comparator.comparing(
-            pair -> -pair.first().x * directionBias.x + pair.first().y * directionBias.y - pair.first().z * directionBias.z
-        ));
+        renderOrder.clear();
+
         chunks.forEach((chunkPos, chunk) -> chunk.forEach(chunkPos, (blockPos, block) -> {
-            if (getBlock(new GridPoint3(blockPos).add(direction.getVisibleSides().x, 0, 0)).isTransparent() ||
-                getBlock(new GridPoint3(blockPos).add(0, direction.getVisibleSides().y, 0)).isTransparent() ||
-                getBlock(new GridPoint3(blockPos).add(0, 0, direction.getVisibleSides().z)).isTransparent()
+            if (getBlock(blockPos.add(direction.getVisibleSides().x, 0, 0)).isTransparent() |
+                getBlock(blockPos.add(-direction.getVisibleSides().x, direction.getVisibleSides().y, 0)).isTransparent() |
+                getBlock(blockPos.add(0, -direction.getVisibleSides().y, direction.getVisibleSides().z)).isTransparent()
             ) {
-                queue.add(Pair.of(direction.rotateCoords(blockPos), block));
+                blockPos.add(0, 0, -direction.getVisibleSides().z);
+                RenderableBlock renderableBlock = new RenderableBlock(direction.rotateCoords(blockPos), block);
+
+                renderableBlock.largeShadow = !getBlock(blockPos.add(direction.getFacingLargeSide().getVector())).isSolid();
+                blockPos.sub(direction.getFacingLargeSide().getVector());
+
+                renderableBlock.smallShadow = !getBlock(blockPos.add(direction.getFacingSmallSide().getVector())).isSolid();
+                blockPos.sub(direction.getFacingSmallSide().getVector());
+
+                renderOrder.add(renderableBlock);
             }
         }));
 
-        worldRenderer.render(batch, delta, direction, queue);
+        entities.forEach(entity -> renderOrder.add(new RenderableEntity(direction.rotateCoords(new Vector3(entity.x, entity.y, entity.z)), entity)));
+
+        renderOrder.sort(Comparator.comparing(renderable ->
+            - renderable.getPosition().x * (Math.abs(direction.getFacingLargeSide().getVector().x) * 2 + Math.abs(direction.getFacingSmallSide().getVector().x))
+            + renderable.getPosition().y * 4
+            - renderable.getPosition().z * (Math.abs(direction.getFacingLargeSide().getVector().z) * 2 + Math.abs(direction.getFacingSmallSide().getVector().z))
+        ));
+
+        renderOrder.forEach(renderable -> renderable.render(batch, delta, direction));
     }
 
     public void setBlock(GridPoint3 blockPos, Block block) {
@@ -227,7 +275,7 @@ public class World {
     }
 
     public static class Settings {
-        public final int RENDER_DISTANCE = 4;
+        public final int RENDER_DISTANCE = 2;
         public static final int MINIMAL_CHUNK_Y = 0;
         public static final int MAXIMAL_CHUNK_Y = 0;
 

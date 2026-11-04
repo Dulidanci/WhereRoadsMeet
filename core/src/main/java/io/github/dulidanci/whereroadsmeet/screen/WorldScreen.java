@@ -5,8 +5,9 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
-import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.graphics.profiling.GLProfiler;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.math.collision.Ray;
@@ -19,7 +20,6 @@ import io.github.dulidanci.whereroadsmeet.level.world.World;
 import io.github.dulidanci.whereroadsmeet.level.world.WorldRenderer;
 import io.github.dulidanci.whereroadsmeet.level.world.collision.RaycastResult;
 import io.github.dulidanci.whereroadsmeet.level.world.collision.Raycaster;
-import io.github.dulidanci.whereroadsmeet.registry.Registries;
 
 public class WorldScreen implements Screen {
     private final SpriteBatch batch;
@@ -30,9 +30,10 @@ public class WorldScreen implements Screen {
     private Vector2 previousPosition;
     public Direction direction;
     public final Ray ray;
+    private GLProfiler glProfiler;
 
     public WorldScreen() {
-        batch = new SpriteBatch();
+        batch = new SpriteBatch(8191);
         camera = new OrthographicCamera();
         viewport = new ScreenViewport(camera);
 
@@ -42,17 +43,15 @@ public class WorldScreen implements Screen {
 
         ray = new Ray();
 
-        Registries.BLOCK_TYPES.getAll().forEach(registryKey -> AssetManagerWrapper.loadTexture(registryKey.id()));
-        AssetManagerWrapper.loadTexture("small_shadow");
-        AssetManagerWrapper.loadTexture("large_shadow");
-        AssetManagerWrapper.finishLoading();
+        AssetManagerWrapper.loadAtlas(AssetManagerWrapper.BLOCK_ATLAS);
 
         world = new World();
     }
 
     @Override
     public void show() {
-
+        glProfiler = new GLProfiler(Gdx.graphics);
+        glProfiler.enable();
     }
 
     @Override
@@ -111,7 +110,9 @@ public class WorldScreen implements Screen {
         }
         // #input process end
 
-        world.update();
+        long start = System.nanoTime();
+
+        world.update(delta);
 
         ScreenUtils.clear(Color.LIGHT_GRAY);
 
@@ -124,11 +125,40 @@ public class WorldScreen implements Screen {
 
         Vector3 vector = new Vector3(Gdx.graphics.getWidth() - 128, Gdx.graphics.getHeight(), 0);
         viewport.unproject(vector);
-        Texture texture = AssetManagerWrapper.getTexture(world.getSelectedBlock().getId());
-        batch.draw(texture, vector.x, vector.y, texture.getWidth() * WorldRenderer.RENDER_SCALE * camera.zoom, texture.getHeight() * WorldRenderer.RENDER_SCALE * camera.zoom, 0, 0, texture.getWidth(), texture.getHeight(), direction.ordinal() % 2 == 1, false);
-
+        TextureRegion texture = AssetManagerWrapper.getTexture(AssetManagerWrapper.BLOCK_ATLAS, world.getSelectedBlock().getId());
+        batch.draw(texture, vector.x, vector.y,
+            texture.getRegionWidth() * WorldRenderer.RENDER_SCALE * camera.zoom / 2, texture.getRegionHeight() * WorldRenderer.RENDER_SCALE * camera.zoom / 2,
+            texture.getRegionWidth() * WorldRenderer.RENDER_SCALE * camera.zoom, texture.getRegionHeight() * WorldRenderer.RENDER_SCALE * camera.zoom,
+            direction.ordinal() % 2 == 1 ? -1 : 1, 1, 0);
 
         batch.end();
+
+        /// LOGGING
+        if (true) {
+
+            if (Gdx.graphics.getFrameId() % 60 == 0) {
+                Gdx.app.log("Performance",
+                    "FPS: " + Gdx.graphics.getFramesPerSecond());
+            }
+
+            long elapsed = System.nanoTime() - start;
+
+            if (Gdx.graphics.getFrameId() % 60 == 0) {
+                Gdx.app.log("Performance",
+                    "Render time: " + elapsed / 1_000_000.0 + " ms");
+            }
+
+        } else {
+
+            Gdx.app.log("Rendering",
+                "OpenGL calls: " + glProfiler.getCalls()
+                    + ", Draw calls: " + glProfiler.getDrawCalls()
+                    + ", texture bindings: " + glProfiler.getTextureBindings()
+                    + ", vertices: " + glProfiler.getVertexCount().total);
+
+            glProfiler.reset();
+
+        }
     }
 
     @Override
@@ -190,7 +220,7 @@ public class WorldScreen implements Screen {
         /// small right 24 13
         /// large left: 21 11
         /// large right: 11 11
-        camera.position.set(WorldRenderer.calculatePosition(direction.rotateCoords(raycastResult.targetCoords()), direction));
+        camera.position.set(WorldRenderer.calculateNewPosition(direction.rotateCoords(raycastResult.targetCoords()), direction));
 
         if (raycastResult.side().isVertical()) {
             camera.position.add(16 * WorldRenderer.RENDER_SCALE, 24 * WorldRenderer.RENDER_SCALE, 0);
